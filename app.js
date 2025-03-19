@@ -1,29 +1,30 @@
-const ytdl = require('@distube/ytdl-core')
+const express = require('express');
+const ytdl = require('@distube/ytdl-core');
+const cors = require('cors');
+const app = express();
+app.use(cors());
 
-async function getDownloadLink(videoUrl) {
-  try {
-    if (!ytdl.validateURL(videoUrl)) {
-      console.log('Invalid YouTube URL')
-      return
+app.get('/getDownloadLink', async (req, res) => {
+    const videoUrl = req.query.url;
+
+    if (!videoUrl || !ytdl.validateURL(videoUrl)) {
+        return res.status(400).json({ error: 'Invalid YouTube URL' });
     }
 
-    const info = await ytdl.getInfo(videoUrl)
+    try {
+        const info = await ytdl.getInfo(videoUrl);
+        const format = info.formats.find(f => f.qualityLabel === '720p' && f.hasAudio);
 
-    // Cherche la qualité 720p
-    const format = info.formats.find((f) => f.qualityLabel === '720p' && f.hasAudio)
+        if (!format) {
+            return res.status(404).json({ error: '720p format not available' });
+        }
 
-    if (!format) {
-      console.log('720p avec audio non disponible. Téléchargement en qualité inférieure.')
-      return
+        res.json({ downloadUrl: format.url });
+    } catch (error) {
+        res.status(500).json({ error: 'Error fetching video link' });
     }
+});
 
-    console.log('Download Link:', format.url)
-    return format.url
-  } catch (error) {
-    console.error('Error fetching video link:', error)
-  }
-}
-
-// Exemple d'utilisation
-const videoUrl = 'https://www.youtube.com/watch?v=2kBhVSCN1k4' // Remplace avec ton URL
-getDownloadLink(videoUrl)
+// Démarrage du serveur
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
